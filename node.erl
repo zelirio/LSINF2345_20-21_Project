@@ -30,7 +30,7 @@ activeThread(State,PassivePid) ->
             end,
             Buffer_temp = [[self(),0]],
             View_temp = permute(State#state.view),
-            View = moveOld(View_temp),
+            View = moveOld(View_temp,State#state.h),
             Buffer = appendFirst(Buffer_temp, View, (State#state.c / 2) -1),
             Peer ! {push, self(), Buffer},
             if
@@ -53,7 +53,7 @@ passiveThread(State, ActivePid) ->
                State#state.pushPull ->
                     Buffer_temp = [[self(),0]],
                     View_temp = permute(State#state.view),
-                    View = moveOld(View_temp),
+                    View = moveOld(View_temp,State#state.h),
                     Buffer = appendFirst(Buffer_temp, View, (State#state.c / 2) -1),
                     From ! {push, self(), Buffer}
             end,
@@ -64,7 +64,8 @@ passiveThread(State, ActivePid) ->
     end.
 
 randPeerSelection(View) ->
-    42.
+    I = rand:uniform(length(View)),
+    lists:nth(I,View).
 
 select(View, C, H, S, Buffer) ->
     42.
@@ -72,14 +73,42 @@ select(View, C, H, S, Buffer) ->
 tailPeerSelection(View) ->
     42.
 
-moveOld(View) ->
-    42.
+moveOld(View,H) ->
+    Sorted = lists:sort(fun([_,A],[_,B]) -> A =< B end, View),
+    Oldest = lists:sublist(Sorted,length(Sorted) - H + 1, length(Sorted)),
+    Filt = filter(View,Oldest,[]),
+    Filt ++ Oldest.
+
+filter([E|T], Oldest, Acc) ->
+    C = contains(E,Oldest),
+    if 
+        C ->
+            filter(T,Oldest,Acc);
+        true ->
+            filter(T,Oldest,Acc ++ [E])
+    end;
+
+filter([],_,Acc) ->
+    Acc.
+
+contains(E,[A|T]) ->
+    if 
+        E == A -> 
+            true;
+        true -> 
+            contains(E,T)
+    end;
+
+contains(_,[]) ->
+    false.
 
 permute(View) ->
     42.
 
 appendFirst(Buffer, View, N) ->
-    42.
+    First = lists:sublist(View,N),
+    Buffer ++ First.
+
 
 increaseAge(View) ->
     42.
