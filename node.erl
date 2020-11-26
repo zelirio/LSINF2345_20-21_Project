@@ -1,5 +1,5 @@
 - module(node).
-- export([init/6, activeThread/2, passiveThread/2, counter/2]).
+- export([init/6, activeThread/2, passiveThread/2, counter/2, permute/1]).
 - record(state, {id ,log, buffer, view, c, h, s, pushPull, peerSelection}).
 
 init(Id, C, PeerS, PushPull, H, S) ->
@@ -71,7 +71,7 @@ select(View, C, H, S, Buffer) ->
     42.
 
 tailPeerSelection(View) ->
-    42.
+    lists:last(View).
 
 moveOld(View,H) ->
     Sorted = lists:sort(fun([_,A],[_,B]) -> A =< B end, View),
@@ -103,7 +103,18 @@ contains(_,[]) ->
     false.
 
 permute(View) ->
-    42.
+    randPeerSelection(permutations(View)).
+
+permutations([]) -> 
+    [[]];
+
+permutations(L1) ->
+    Permutations =
+          fun(Start, Rest) ->
+            Perm_Rest = permutations(Rest),  
+            lists:map(fun(X) -> [Start | X] end, Perm_Rest)
+            end,
+    [ X2  || X1 <- L1, X2 <- Permutations(X1, L1--[X1])].
 
 appendFirst(Buffer, View, N) ->
     First = lists:sublist(View,N),
@@ -111,4 +122,4 @@ appendFirst(Buffer, View, N) ->
 
 
 increaseAge(View) ->
-    42.
+    lists:map(fun(A) -> A+1 end, View).
