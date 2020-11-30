@@ -1,9 +1,9 @@
 - module(node).
-- export([init/6, activeThread/2, passiveThread/2, counter/2, permute/1]).
-- record(state, {id ,log, buffer, view, c, h, s, pushPull, peerSelection}).
+- export([init/7, activeThread/2, passiveThread/2, counter/2, filterDub/1]).
+- record(state, {id ,log, buffer, view, c, h, s, pushPull, peerSelection, tree}).
 
-init(Id, C, PeerS, PushPull, H, S) ->
-    State = #state{id = Id, log = [], buffer = [], view = [], c = C, h=H, s=S, pushPull=PushPull, peerSelection=PeerS},
+init(Id, C, PeerS, PushPull, H, S, TreePid) ->
+    State = #state{id = Id, log = [], buffer = [], view = [], c = C, h=H, s=S, pushPull=PushPull, peerSelection=PeerS, tree=TreePid},
     ActivePid = spawn(node, activeThread, [State,-1]),
     spawn(node, counter, [3000, ActivePid]),
     PassivePid = spawn(node, passiveThread, [State,ActivePid]),
@@ -22,25 +22,34 @@ activeThread(State,PassivePid) ->
         {updateState, NewState} ->
             activeThread(NewState, PassivePid);
         {time} ->
-            if 
-                State#state.peerSelection =:= rand ->
-                    Peer = randPeerSelection(State#state.view);
-                State#state.peerSelection =:= tail ->
-                    Peer = tailPeerSelection(State#state.view)
+            if   
+                State#state.peerSelection == rand ->
+                    [Peer,_] = randPeerSelection(State#state.view);
+                State#state.peerSelection == tail ->
+                    [Peer,_] = tailPeerSelection(State#state.view)
             end,
             Buffer_temp = [[self(),0]],
             View_temp = permute(State#state.view),
             View = moveOld(View_temp,State#state.h),
-            Buffer = appendFirst(Buffer_temp, View, (State#state.c / 2) -1),
+            Buffer = appendFirst(Buffer_temp, View, (State#state.c div 2) -1),
             Peer ! {push, self(), Buffer},
+            io:format("I wait~n",[]),
             if
                 State#state.pushPull ->
                     receive
                         {push,_,Bufferp} ->
-                            select(View, State#state.c, State#state.h, State#state.s, Bufferp)
-                    end
+                            NewView = select(View, State#state.c, State#state.h, State#state.s, Bufferp)
+                    after
+                        1 ->
+                            io:format("timeout ~n",[]),
+                            NewView = View 
+                    end;
+                true ->
+                    NewView = View
             end,
-            NewState = #state{id = State#state.id, log = [], buffer = Buffer, view = increaseAge(View), c = State#state.c, h=State#state.h, s=State#state.h, pushPull=State#state.pushPull, peerSelection=State#state.peerSelection},
+            io:format("~w ~w~n",[State#state.id,NewView]),
+            file:write_file("node.log", io_lib:fwrite("~w ~w~n",[State#state.id,NewView])),
+            NewState = #state{id = State#state.id, log = [], buffer = Buffer, view = increaseAge(NewView), c = State#state.c, h=State#state.h, s=State#state.h, pushPull=State#state.pushPull, peerSelection=State#state.peerSelection, tree=State#state.tree},
             PassivePid ! {updateState, NewState},
             activeThread(NewState, PassivePid)
     end.
@@ -48,27 +57,82 @@ activeThread(State,PassivePid) ->
 
 passiveThread(State, ActivePid) ->
     receive 
+        {tree} ->
+            Neigh = binaryTreeServer:getNeighbors(State#state.tree, self()),
+            NewState = #state{id = State#state.id, log = [], buffer = State#state.buffer, view = zeroPading(Neigh), c = State#state.c, h=State#state.h, s=State#state.h, pushPull=State#state.pushPull, peerSelection=State#state.peerSelection, tree=State#state.tree},
+            ActivePid ! {updateState, NewState},
+            passiveThread(NewState, ActivePid);
         {push, From, Bufferp} -> 
             if 
                State#state.pushPull ->
                     Buffer_temp = [[self(),0]],
                     View_temp = permute(State#state.view),
                     View = moveOld(View_temp,State#state.h),
-                    Buffer = appendFirst(Buffer_temp, View, (State#state.c / 2) -1),
-                    From ! {push, self(), Buffer}
+                    Buffer = appendFirst(Buffer_temp, View, (State#state.c div 2) -1),
+                    From ! {push, self(), Buffer};
+                true ->
+                    Buffer = State#state.buffer,
+                    View  = State#state.view
             end,
-        select(View, State#state.c, State#state.h, State#state.s, Bufferp),
-        NewState = #state{id = State#state.id, log = [], buffer = Buffer, view = increaseAge(View), c = State#state.c, h=State#state.h, s=State#state.h, pushPull=State#state.pushPull, peerSelection=State#state.peerSelection},
+        NewView = select(View, State#state.c, State#state.h, State#state.s, Bufferp),
+        NewState = #state{id = State#state.id, log = [], buffer = Buffer, view = increaseAge(NewView), c = State#state.c, h=State#state.h, s=State#state.h, pushPull=State#state.pushPull, peerSelection=State#state.peerSelection, tree=State#state.tree},
         ActivePid ! {updateState, NewState},
         passiveThread(NewState, ActivePid)
     end.
+
+zeroPading([H|T]) ->
+    [[H,0]] ++ zeroPading(T);
+
+zeroPading([]) ->
+    [].
 
 randPeerSelection(View) ->
     I = rand:uniform(length(View)),
     lists:nth(I,View).
 
 select(View, C, H, S, Buffer) ->
-    42.
+    ViewAppend = View ++ Buffer,
+    ViewNoDup = filterDub(ViewAppend),
+    ViewNoOld = filterOld(ViewNoDup, erlang:max(erlang:min(H, length(ViewNoDup)-C),0)),
+    ViewNoHead = lists:sublist(ViewNoOld,erlang:max(erlang:min(S,length(ViewNoOld)-C),0) + 1, length(ViewNoOld)),
+    filterRandom(ViewNoHead,length(ViewNoHead)-C).
+
+filterRandom(List, 0) ->
+    List;
+
+filterRandom(List, N) -> 
+    I = rand:uniform(length(List)),
+    filterRandom(delete(List,I),N-1).
+
+delete([],0) ->
+    [];
+
+delete([_|T], 0) ->
+    T;
+
+delete([H|T], N) ->
+    [H] ++ delete(T,N-1).
+
+filterOld(List,N) ->
+    Sorted = lists:sort(fun([_,A],[_,B]) -> A =< B end, List),
+    Oldest = lists:sublist(Sorted,length(Sorted) - N + 1, length(Sorted)),
+    filter(List,Oldest,[]).
+
+filterDub(List) ->
+    filterDub(List,[],[]).
+
+filterDub([],_,_) ->
+    [];
+
+filterDub([[H|Age]|T], Filter, []) ->
+    [[H|Age]] ++ filterDub(T, Filter ++ [H], Filter ++ [H]);
+
+filterDub([[H|_]|T], Filter, [H|_]) -> 
+    filterDub(T, Filter, Filter);
+
+filterDub(List, Filter, [_|T]) ->
+    filterDub(List, Filter, T).
+
 
 tailPeerSelection(View) ->
     lists:last(View).
@@ -122,4 +186,4 @@ appendFirst(Buffer, View, N) ->
 
 
 increaseAge(View) ->
-    lists:map(fun(A) -> A+1 end, View).
+    lists:map(fun([P,A]) -> [P,A+1] end, View).

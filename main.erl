@@ -1,26 +1,28 @@
 - module(main).
--export([start/5]).
+-export([start/6]).
 
+start(N, C, PeerS, PushPull, H, S) ->
+    Nodes = init(N, PeerS, C, PushPull, H, S),
+    notif(Nodes).
 
-start(N, rand, true, H, S) -> 
-   init(N);
-
-start(N, rand, false, H, S) -> 
-    init(N);
-
-start(N, tail, true, H, S) -> 
-    init(N);
-
-start(N, PeerS, PushPull, H, S) ->
-    init(N).
-
-init(N) -> 
+init(N, PeerS, C, PushPull,H, S) -> 
     {ok, Pid} = binaryTreeServer:start_link(server),
-    init(N, Pid).
+    init(N, Pid, C, PeerS, PushPull,H, S).
 
-init(1, Pid) -> 
-    binaryTreeServer:add(Pid,1);
+init(1, Pid, C, PeerS, PushPull, H, S) -> 
+    {Id,ActivePid,PassivePid} = node:init(1, C, PeerS, PushPull, H, S,Pid),
+    binaryTreeServer:add(Pid,PassivePid),
+    {Id,ActivePid,PassivePid};
 
-init(N, Pid) ->
-    _ = binaryTreeServer:add(Pid,N),
-    init(N-1,Pid).
+init(N, Pid, C, PeerS, PushPull, H, S) ->
+    {Id,ActivePid,PassivePid} = node:init(N, C, PeerS, PushPull, H, S,Pid),
+    _ = binaryTreeServer:add(Pid,PassivePid),
+    [{Id,ActivePid,PassivePid}] ++ init(N-1,Pid, C, PeerS, PushPull, H, S).
+
+notif({_,_,PassivePid}) ->
+    PassivePid ! {tree},
+    42;
+
+notif([{_,_,PassivePid}|T]) ->
+    PassivePid ! {tree},
+    notif(T).
