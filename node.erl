@@ -1,5 +1,5 @@
 - module(node).
-- export([init/7, activeThread/2, passiveThread/2, counter/2, select/5]).
+- export([init/7, activeThread/2, passiveThread/2, counter/2, moveOld/2]).
 - record(state, {id ,log, buffer, view, c, h, s, pushPull, peerSelection, tree}).
 
 init(Id, C, PeerS, PushPull, H, S, TreePid) ->
@@ -63,6 +63,8 @@ passiveThread(State, ActivePid) ->
             NewState = #state{id = State#state.id, log = [], buffer = State#state.buffer, view = zeroPading(Neigh), c = State#state.c, h=State#state.h, s=State#state.h, pushPull=State#state.pushPull, peerSelection=State#state.peerSelection, tree=State#state.tree},
             ActivePid ! {updateState, NewState},
             passiveThread(NewState, ActivePid);
+        {updateState, NewState} ->
+            passiveThread(NewState, ActivePid);
         {push, From, Bufferp} -> 
             if 
                State#state.pushPull ->
@@ -118,7 +120,7 @@ delete([H|T], N) ->
 filterOld(List,N) ->
     Sorted = lists:sort(fun([_|[A|_]],[_|[B|_]]) -> A =< B end, List),
     Oldest = lists:sublist(Sorted,length(Sorted) - N + 1, length(Sorted)),
-    filter(List,Oldest,[]).
+    filter(List,Oldest).
 
 filterDub(List) ->
     filterDub(List,[],[]).
@@ -142,31 +144,14 @@ tailPeerSelection(View) ->
 moveOld(View,H) ->
     Sorted = lists:sort(fun([_|[A|_]],[_|[B|_]]) -> A =< B end, View),
     Oldest = lists:sublist(Sorted,erlang:max(length(Sorted) - H,0) + 1, length(Sorted)),
-    Filt = filter(View,Oldest,[]),
+    Filt = filter(View,Oldest),
     Filt ++ Oldest.
 
-filter([E|T], Oldest, Acc) ->
-    C = contains(E,Oldest),
-    if 
-        C ->
-            filter(T,Oldest,Acc);
-        true ->
-            filter(T,Oldest,Acc ++ [E])
-    end;
+filter(View, [H|T]) ->
+    filter(lists:delete(H,View),T);
 
-filter([],_,Acc) ->
-    Acc.
-
-contains(E,[A|T]) ->
-    if 
-        E == A -> 
-            true;
-        true -> 
-            contains(E,T)
-    end;
-
-contains(_,[]) ->
-    false.
+filter(View,[]) ->
+    View.
 
 permute(View) ->
     randPeerSelection(permutations(View)).

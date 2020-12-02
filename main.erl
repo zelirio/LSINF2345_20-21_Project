@@ -3,6 +3,7 @@
 
 counter(Timeout,Round,Nodes, N, C, PeerS, PushPull, H, S, Tree) ->
     timer:sleep(Timeout),
+    file:write_file("node.log", io_lib:fwrite("Round ~w~n",[Round]),[append]),
     if
         Round==30 ->
             NewNodes = addNodes((N*60) div 100, Tree, C, PeerS, PushPull, H, S, (N*40) div 100),
