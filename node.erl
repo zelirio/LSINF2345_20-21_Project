@@ -1,5 +1,5 @@
 - module(node).
-- export([init/7, activeThread/2, passiveThread/2, counter/2, moveOld/2]).
+- export([init/7, activeThread/2, passiveThread/2, counter/2]).
 - record(state, {id ,log, buffer, view, c, h, s, pushPull, peerSelection, tree}).
 
 init(Id, C, PeerS, PushPull, H, S, TreePid) ->
@@ -154,23 +154,18 @@ filter(View,[]) ->
     View.
 
 permute(View) ->
-    randPeerSelection(permutations(View)).
+    permutations(View,[]).
 
-permutations([]) -> 
-    [[]];
+permutations([],P) -> 
+    P;
 
-permutations(L1) ->
-    Permutations =
-          fun(Start, Rest) ->
-            Perm_Rest = permutations(Rest),  
-            lists:map(fun(X) -> [Start | X] end, Perm_Rest)
-            end,
-    [ X2  || X1 <- L1, X2 <- Permutations(X1, L1--[X1])].
+permutations(L1,P) ->
+    Elem=randPeerSelection(L1),
+    permutations(lists:delete(Elem,L1),P++[Elem]).
 
 appendFirst(Buffer, View, N) ->
     First = lists:sublist(View,N),
     Buffer ++ First.
-
 
 increaseAge(View) ->
     lists:map(fun([P,A,Id]) -> [P,A+1,Id] end, View).
