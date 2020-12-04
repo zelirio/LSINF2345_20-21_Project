@@ -1,36 +1,79 @@
 - module(main).
 -export([start/6]).
 
-counter(Timeout,Round,Nodes, N, C, PeerS, PushPull, H, S, Tree) ->
+counter(Timeout,Round,Nodes, N, C, PeerS, PushPull, H, S, Tree, Dead) ->
     timer:sleep(Timeout),
-    file:write_file("node.log", io_lib:fwrite("Round ~w~n",[Round]),[append]),
+    %file:write_file("node.log", io_lib:fwrite("Round ~w~n",[Round]),[append]),
     if
         Round==30 ->
             NewNodes = addNodes((N*60) div 100, Tree, C, PeerS, PushPull, H, S, (N*40) div 100),
             notif(NewNodes),
-            counter(Timeout, Round+1,Nodes ++ NewNodes, N, C, PeerS, PushPull, H, S, Tree);
+            timer:sleep(100),
+            NewList = Nodes ++ NewNodes,
+            time(NewList, Round),
+            counter(Timeout, Round+1,NewList, N, C, PeerS, PushPull, H, S, Tree, Dead);
         Round==60 ->
             NewNodes = addNodes((N*80) div 100, Tree, C, PeerS, PushPull, H, S, (N*60) div 100),
             notif(NewNodes),
-            counter(Timeout, Round+1,Nodes ++ NewNodes, N, C, PeerS, PushPull, H, S, Tree);
+            timer:sleep(100),
+            NewList = Nodes ++ NewNodes,
+            time(NewList, Round),
+            counter(Timeout, Round+1,NewList, N, C, PeerS, PushPull, H, S, Tree, Dead);
         Round==90 ->
             NewNodes = addNodes(N, Tree, C, PeerS, PushPull, H, S, (N*80) div 100),
             notif(NewNodes),
-            counter(Timeout, Round+1,Nodes ++ NewNodes, N, C, PeerS, PushPull, H, S, Tree);
+            timer:sleep(100),
+            NewList = Nodes ++ NewNodes,
+            time(NewList, Round),
+            counter(Timeout, Round+1,NewList, N, C, PeerS, PushPull, H, S, Tree, Dead);
         Round==120 ->
-            kaboom;
+            {NewNodes, DeadNodes} = crash((N*60) div 100, Nodes,[]),
+            time(NewNodes, Round),
+            counter(Timeout, Round+1,NewNodes, N, C, PeerS, PushPull, H, S, Tree, DeadNodes);
         Round==150 ->
-            fzombi;
+            [P|_] = Nodes,
+            NewNodes = recover((length(Dead)*60) div 100, Nodes, Dead, P, C, PeerS, PushPull, H, S, Tree),
+            timer:sleep(100),
+            time(NewNodes, Round),
+            counter(Timeout, Round+1,NewNodes, N, C, PeerS, PushPull, H, S, Tree, Dead);
         Round==180 ->
+            crash(length(Nodes), Nodes,[]),
             fini;
         true -> 
-            counter(Timeout, Round+1,Nodes, N, C, PeerS, PushPull, H, S, Tree)
+            time(Nodes, Round),
+            counter(Timeout, Round+1,Nodes, N, C, PeerS, PushPull, H, S, Tree, Dead)
     end.
+
+recover(0, Nodes, _, _, _, _, _, _, _, _) ->
+    Nodes;
+
+recover(N, Nodes, [H|T], P, C, PeerS, PushPull, Heal, S, Tree) ->
+     {Id,ActivePid,PassivePid} = node:init(H, C, PeerS, PushPull, Heal, S,Tree),
+     PassivePid ! {recover,P},
+     recover(N-1, Nodes ++ [{Id,ActivePid,PassivePid}], T, P, C, PeerS, PushPull, Heal, S, Tree).
+
+crash(0,Nodes,Dead) ->
+    {Nodes,Dead};
+
+crash(N,Nodes,Dead) ->
+    I = rand:uniform(length(Nodes)),
+    Elem = lists:nth(I,Nodes),
+    {Id,APid, PPid} = Elem,
+    exit(APid, normal),
+    exit(PPid, normal),
+    crash(N-1, lists:delete(Elem,Nodes), Dead ++ [Id]).
+
+time([{_,Pid,_}], Round) ->
+    Pid ! {time, Round};
+
+time([{_,Pid,_}|T], Round) ->
+    Pid ! {time, Round},
+    time(T,Round).
 
 start(N, C, PeerS, PushPull, H, S) ->
     [Nodes,Tree] = init((N*40) div 100, PeerS, C, PushPull, H, S),
     notif(Nodes),
-    counter(3000,1,Nodes, N, C, PeerS, PushPull, H, S, Tree).
+    counter(3000,0,Nodes, N, C, PeerS, PushPull, H, S, Tree, []).
 
 init(N, PeerS, C, PushPull,H, S) -> 
     {ok, Pid} = binaryTreeServer:start_link(server),

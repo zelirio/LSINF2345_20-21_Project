@@ -1,20 +1,15 @@
 - module(node).
-- export([init/7, activeThread/2, passiveThread/2, counter/2]).
+- export([init/7, activeThread/2, passiveThread/2]).
 - record(state, {id ,log, buffer, view, c, h, s, pushPull, peerSelection, tree}).
 
 init(Id, C, PeerS, PushPull, H, S, TreePid) ->
     State = #state{id = Id, log = [], buffer = [], view = [], c = C, h=H, s=S, pushPull=PushPull, peerSelection=PeerS, tree=TreePid},
     ActivePid = spawn(node, activeThread, [State,-1]),
-    spawn(node, counter, [3000, ActivePid]),
     PassivePid = spawn(node, passiveThread, [State,ActivePid]),
     ActivePid ! {hello, PassivePid},
     io:format("~w ~w ~w ~n",[Id,ActivePid,PassivePid]),
     {Id,ActivePid,PassivePid}.
 
-counter(Timeout, Pid) ->
-    timer:sleep(Timeout),
-    Pid ! {time},
-    counter(Timeout, Pid).
 
 activeThread(State,PassivePid) ->
     receive 
@@ -22,7 +17,7 @@ activeThread(State,PassivePid) ->
             activeThread(State, From);
         {updateState, NewState} ->
             activeThread(NewState, PassivePid);
-        {time} ->
+        {time, Round} ->
             if   
                 State#state.peerSelection == rand ->
                     [Peer,_,_] = randPeerSelection(State#state.view);
@@ -49,7 +44,7 @@ activeThread(State,PassivePid) ->
                     NewView = View
             end,
             %io:format("~w ~w~n",[State#state.id,NewView]),
-            file:write_file("node.log", io_lib:fwrite("~w ~w~n",[State#state.id,NewView]),[append]),
+            file:write_file("node.log", io_lib:fwrite("~w ~w ~w~n",[State#state.id,NewView, Round]),[append]),
             NewState = #state{id = State#state.id, log = [], buffer = Buffer, view = increaseAge(NewView), c = State#state.c, h=State#state.h, s=State#state.h, pushPull=State#state.pushPull, peerSelection=State#state.peerSelection, tree=State#state.tree},
             PassivePid ! {updateState, NewState},
             activeThread(NewState, PassivePid)
@@ -64,6 +59,10 @@ passiveThread(State, ActivePid) ->
             ActivePid ! {updateState, NewState},
             passiveThread(NewState, ActivePid);
         {updateState, NewState} ->
+            passiveThread(NewState, ActivePid);
+        {recover, {Id,_,Pid}} ->
+            NewState = #state{id = State#state.id, log = [], buffer = State#state.buffer, view = zeroPading([[Pid,Id]]), c = State#state.c, h=State#state.h, s=State#state.h, pushPull=State#state.pushPull, peerSelection=State#state.peerSelection, tree=State#state.tree},
+            ActivePid ! {updateState, NewState},
             passiveThread(NewState, ActivePid);
         {push, From, Bufferp} -> 
             if 
