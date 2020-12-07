@@ -135,6 +135,6 @@ In order to run the simulation, you need to compile the files binaryTreeServer.e
 
 We deployed the peer sampling service with the two sets of recommended parameters, the results for the in-degree can be seen on the figure below. In order to compute the value from the log, we used the statLog.py script in order to generate the healer_deployment.data and swapper_deployment.data which correspond to the format used by the plot_indegree_per_cycle.gp script that was provided.
 
-![pss-inDegree](pss_indegree.pdf)
+![pss-inDegree](pss_indegree.png)
 
 The results for the two policies are almost the same. At the first round, the nodes have only shared their view with one of their neighbors so the mean indegree is pretty close to 3 (the number of neighbors for most of the nodes in the binary tree). The variance remains quite small. After that, the mean in-degree converges towards a value of 7 while the variance also remains the same. We notice that at the round 120 there is a drop for both the average and the variance since there are 40% of the nodes that crashed. Following the crash, the system successfully returns to the same balance as before and doesn't show much changes even after the recovery of some of the crashed nodes. 
