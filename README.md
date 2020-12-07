@@ -126,3 +126,15 @@ You will find below every criterion we will use to grade the project, their weig
   - There is a box plot containing two curves, the first one represent the execution of the healer policy of view selection and the second one represents the swapper policy;
   - The execution lasts at least 180 cycles and there is a data point every 20 cycles for the in-degree;
   - There is a clear justification of the behavior of curves in the in-degree box plot according to the scenario.
+
+## :running: Running
+
+In order to run the simulation, you need to compile the files binaryTreeServer.erl, node.erl and main.erl. Afterwards, you need to call the function start from main as main:start(N, C, PeerS, PushPull, H, S). The arguments are N (integer): the total number of nodes; C (integer): the maximal size of the the view for each node; PeerS {rand,tail}: the policy for peer selection (random or tail); PushPull {true,false}: the propagation policy, if true, all nodes are in push-pull mode if false, all nodes are in push mode; H (integer): self-healing parameter; S (integer): swapper parameter.
+
+## :camera: Simulation
+
+We deployed the peer sampling service with the two sets of recommended parameters, the results for the in-degree can be seen on the figure below. In order to compute the value from the log, we used the statLog.py script in order to generate the healer_deployment.data and swapper_deployment.data which correspond to the format used by the plot_indegree_per_cycle.gp script that was provided.
+
+![pss-inDegree](pss_indegree.pdf)
+
+The results for the two policies are almost the same. At the first round, the nodes have only shared their view with one of their neighbors so the mean indegree is pretty close to 3 (the number of neighbors for most of the nodes in the binary tree). The variance remains quite small. After that, the mean in-degree converges towards a value of 7 while the variance also remains the same. We notice that at the round 120 there is a drop for both the average and the variance since there are 40% of the nodes that crashed. Following the crash, the system successfully returns to the same balance as before and doesn't show much changes even after the recovery of some of the crashed nodes. 

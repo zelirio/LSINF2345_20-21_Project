@@ -2,16 +2,17 @@
 """
 Created on Tue Dec  1 10:07:58 2020
 
-@author: Aurelien
+@author: Aurelien Buchet & Lylian Brunet
 """
 
-data = open("node.log").readlines()
-inDegree = [dict() for i in range(180)]
-MeaninDegree = [0 for i in range(180)]
+data = open("node.log").readlines() #open the file containing the logs.
+inDegree = [dict() for i in range(180)] #create a dictionnary for the nodes at each round
+MeaninDegree = [0 for i in range(180)]  #create a list for the mean and standard deviation of the in-degree
 SDinDegree = [0 for i in range(180)]
-out = open("healer_deployment.data",'w')
+out = open("healer_deployment.data",'w')   #open a file for writing the results
+#out = open("swapper_deployment.data",'w')
 
-
+# Read all the data from the log and parse it in order to have the inDegree of each node for every round
 for i in range(len(data)):
     data[i] = data[i][:-1].split(' ')
     round = int(data[i][2]) 
@@ -22,7 +23,9 @@ for i in range(len(data)):
             inDegree[round][parse[2]] += 1
         else: 
             inDegree[round][parse[2]] = 1
+data.close()
 
+# For each round: compute the average and standard deviation, write the result every 20 rounds
 for i in range(len(inDegree)):
     avg = 0
     std = 0
