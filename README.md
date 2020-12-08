@@ -8,7 +8,7 @@
 - *Implement and deploy the gossip-based Peer Sampling (PS) service;*
 - *Analyze and report the convergence behavior of this service.*
 
-# :warning: Our results discussion about the code are at the end of this README file.
+# :warning: Our results and discussion about the code are at the end of this README file.
 
 ## :loudspeaker: Context
 
