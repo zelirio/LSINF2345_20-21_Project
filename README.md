@@ -8,6 +8,8 @@
 - *Implement and deploy the gossip-based Peer Sampling (PS) service;*
 - *Analyze and report the convergence behavior of this service.*
 
+# :warning: Our results discussion about the code are at the end of this README file.
+
 ## :loudspeaker: Context
 
 The PS service is a decentralized gossip-based algorithm. In a nutshell, this service delivers an unbiased-random subset of peers from the whole network, nodes might gossip with. This is done via periodic exchanges of neighboring peers between two nodes.
@@ -126,6 +128,10 @@ You will find below every criterion we will use to grade the project, their weig
   - There is a box plot containing two curves, the first one represent the execution of the healer policy of view selection and the second one represents the swapper policy;
   - The execution lasts at least 180 cycles and there is a data point every 20 cycles for the in-degree;
   - There is a clear justification of the behavior of curves in the in-degree box plot according to the scenario.
+
+## :test_tube: Testing the binary tree
+
+In order to test the implementation of the binary tree, you need to use the test module with test:testTree(). This module contains unit tests for the add and getNeighbors functions of the binaryTreeServer.
 
 ## :running: Running
 
