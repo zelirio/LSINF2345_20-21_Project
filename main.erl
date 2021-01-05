@@ -1,12 +1,12 @@
 - module(main).
--export([start/6]).
+-export([start/6, start2/0]).
 
 
 % Main loop that counts the number of round, notifiy every node when a new round begins and follows the steps of the given scenario.
 counter(Timeout,Round,Nodes, N, C, PeerS, PushPull, H, S, Tree, Dead) ->
     timer:sleep(Timeout),
     if
-        Round==30 ->    
+        Round==30 ->
             NewNodes = addNodes((N*60) div 100, Tree, C, PeerS, PushPull, H, S, (N*40) div 100),
             notif(NewNodes),
             timer:sleep(100),   % Wait for all new nodes to start properly.
@@ -40,7 +40,7 @@ counter(Timeout,Round,Nodes, N, C, PeerS, PushPull, H, S, Tree, Dead) ->
         Round==180 -> % ends the simulation by crashing all nodes and returning done.
             crash(length(Nodes), Nodes,[]),
             done;
-        true -> 
+        true ->
             time(Nodes, Round),
             counter(Timeout, Round+1,Nodes, N, C, PeerS, PushPull, H, S, Tree, Dead)
     end.
@@ -77,6 +77,7 @@ time([{_,Pid,_}|T], Round) ->
     time(T,Round).
 
 
+start2()->start(128, 7, tail, true, 4, 3).
 % Function to start the simulation.
 % Should be called with the parameters you want for the gossip alogorithm.
 start(N, C, PeerS, PushPull, H, S) ->
@@ -85,13 +86,13 @@ start(N, C, PeerS, PushPull, H, S) ->
     counter(3000,0,Nodes, N, C, PeerS, PushPull, H, S, Tree, []).
 
 % Start the binaryTree before starting the nodes.
-init(N, PeerS, C, PushPull,H, S) -> 
+init(N, PeerS, C, PushPull,H, S) ->
     {ok, Pid} = binaryTreeServer:start_link(server),
     [init(N, Pid, C, PeerS, PushPull,H, S), Pid].
 
 % Start N nodes and add its id and the pid of the passive thread in the tree.
 % Returns a list with the ids and pids of every new node.
-init(1, Pid, C, PeerS, PushPull, H, S) -> 
+init(1, Pid, C, PeerS, PushPull, H, S) ->
     {Id,ActivePid,PassivePid} = node:init(1, C, PeerS, PushPull, H, S,Pid),
     binaryTreeServer:add(Pid,[PassivePid,1]),
     [{Id,ActivePid,PassivePid}];
@@ -116,7 +117,7 @@ notif([{_,_,PassivePid}|T]) ->
 % Start N new nodes in the middle of the simulation.
 % Returns the list of added nodes.
 addNodes(N, Pid, C, PeerS, PushPull, H, S, Offset) ->
-    if 
+    if
         N == Offset+1 ->
             {Id,ActivePid,PassivePid} = node:init(Offset+1, C, PeerS, PushPull, H, S,Pid),
             _ = binaryTreeServer:add(Pid,[PassivePid,Offset+1]),

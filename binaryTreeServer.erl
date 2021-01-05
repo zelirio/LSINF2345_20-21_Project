@@ -1,5 +1,5 @@
 -module(binaryTreeServer).
--export[add/2,getNeighbors/2].
+-export[add/2,getNeighbors/2,start_link/1].
 -behaviour(gen_server).
 
 %% API
@@ -126,11 +126,11 @@ getNeighbors_recursive(Node,{node, N, _, {node, NodeL, RankL , LL, LR}, {node, N
         getNeighbors_recursive(Node,{node, NodeR, RankR, RL, RR},N)
     end.
 
-add(Pid,Node) -> 
+add(Pid,Node) ->
     gen_server:call(Pid,{add, Node}).
 
 getNeighbors(Pid,Node) ->
-    gen_server:call(Pid,{getNeighbors, Node}). 
+    gen_server:call(Pid,{getNeighbors, Node}).
 
 terminate(_Reason, _State) ->
     ok.

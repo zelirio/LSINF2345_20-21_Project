@@ -15,15 +15,15 @@ out = open("healer_deployment.data",'w')   #open a file for writing the results
 # Read all the data from the log and parse it in order to have the inDegree of each node for every round
 for i in range(len(data)):
     data[i] = data[i][:-1].split(' ')
-    round = int(data[i][2]) 
+    round = int(data[i][2])
     neigh = data[i][1][:-2].split('],[')
     for l in neigh:
         parse = l.split(',')
         if parse[2] in inDegree[round]:
             inDegree[round][parse[2]] += 1
-        else: 
+        else:
             inDegree[round][parse[2]] = 1
-data.close()
+# data.close()
 
 # For each round: compute the average and standard deviation, write the result every 20 rounds
 for i in range(len(inDegree)):
@@ -33,14 +33,12 @@ for i in range(len(inDegree)):
         avg += value
     avg /= len(inDegree[i])
     for (key,value) in inDegree[i].items():
-        std += (value - avg) ** 2 
+        std += (value - avg) ** 2
     std = (std / (len(inDegree[i])-1)) ** 0.5
     MeaninDegree[i] = avg
     SDinDegree[i] = std
     if i % 20 == 0:
         out.write(str(i) + " " + str(avg) + " " + str(std) + "\n")
     if i == 179:
-        out.write(str(i) + " " + str(avg) + " " + str(std) + "\n")        
+        out.write(str(i) + " " + str(avg) + " " + str(std) + "\n")
 out.close()
-
-    
